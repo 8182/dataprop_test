@@ -1,5 +1,8 @@
+require 'net/http'
+require 'json'
+
 class UfService
-  #inicializacion de constantes necesarias
+  # Inicialización de constantes necesarias
   API_KEY = ENV['CMF_API_KEY']
   BASE_URL = 'https://api.sbif.cl/api-sbifv3/recursos_api/uf'
 
@@ -15,15 +18,14 @@ class UfService
     # path += "/periodo" if flow == :periodo
 
     path += "/#{year}" if year
-    path += "/#{month.to_s.rjust(2, '0')}" if month #usamos rjust para rellenar a la izquierda con 0 en caso de que se de por ejemplo el value de 1, pasaria a ser 01
+    path += "/#{month.to_s.rjust(2, '0')}" if month
     path += "/dias/#{day.to_s.rjust(2, '0')}" if day
 
-    #creamos la url dinamicamente, siempre le damos el argumento de formato como json
+    # Construimos la URL final con API key y formato JSON
     url = URI("#{path}?apikey=#{API_KEY}&formato=json")
     response = Net::HTTP.get(url)
     data = JSON.parse(response)
 
-    #si se pone el argumento guardamos en la base de datos los datos
     if fill_db_with_search
       data['UFs'].each do |uf|
         UfValue.find_or_create_by!(uf_date: uf['Fecha']) do |record|
@@ -32,7 +34,32 @@ class UfService
       end
     end
 
-    #retornamos los datos como json
     data
+  rescue => e
+    Rails.logger.error("Error fetching UF data: #{e.message}")
+    nil
+  end
+
+
+  # metodos para consultas mas especificas
+  def self.fetch_year(year = Date.today.year)
+    fetch(year: year)
+  end
+
+  # Obtener UF de hoy
+  def self.fetch_today
+    today = Date.today
+    fetch(year: today.year, month: today.month, day: today.day)
+  end
+
+  # Obtener UF de un mes específico
+  def self.fetch_month(year, month)
+    fetch(year: year, month: month)
+  end
+
+  # Obtener UF de un día específico
+  def self.fetch_day(year, month, day)
+    fetch(year: year, month: month, day: day)
+  end
 
 end
