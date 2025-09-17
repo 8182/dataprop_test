@@ -9,7 +9,13 @@ class UfsController < ApplicationController
     expires_in = (Time.current.end_of_day - Time.current).to_i
 
     #consulta a la api a travez de un servicio, agregandole el cache y la expiracion de este calculado
+    @ufs = Rails.cache.fetch("ufs_#{start_date}_#{end_date}", expires_in: expires_in) do
+      # Llamamos al servicio para el año completo
+      data = UfService.fetch(year: start_date.year, fill_db_with_search: false)
 
+      data['UFs'].map do |uf|
+        { fecha: uf['Fecha'], uf_value: uf['Valor'].to_s.gsub('.', '').gsub(',', '.').to_f }
+      end
     end
   end
 
