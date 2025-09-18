@@ -4,15 +4,29 @@
   <thead class="table-dark">
     <tr>
       <th>Fecha</th>
-      <th>Valor UF</th>
+      <th>Valor UF (CLP)</th>
+      <th>Valor UF (USD)</th>
     </tr>
   </thead>
   <tbody>
-    <% @ufs.each do |uf| %>
-      <tr>
-        <td><%= uf[:fecha] %></td>
-        <td><%= number_with_precision(uf[:uf_value], precision: 2, delimiter: ".") %></td>
-      </tr>
-    <% end %>
+  <% @ufs.each do |uf| %>
+    <tr>
+      <td><%= uf[:uf_date] %></td>
+      <td><%= number_with_precision(uf[:uf_value], precision: 2, delimiter: ".") %></td>
+      <td>
+        <% 
+          # Asegurarnos de que la fecha esté en el mismo formato
+          fecha_str = uf[:uf_date].to_s
+          usd_rate = @usd_values[fecha_str] 
+        %>
+        <% if usd_rate.present? %>
+          <%= number_with_precision(uf[:uf_value] / usd_rate, precision: 4, delimiter: ".") %>
+        <% else %>
+          N/A
+          <!-- Debug: <%= fecha_str %> no encontrada en USD values -->
+        <% end %>
+      </td>
+    </tr>
+  <% end %>
   </tbody>
 </table>
