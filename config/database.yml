@@ -11,8 +11,3 @@ production:
   <<: *default
   database: dataprop_test_production
   url: <%= ENV['DATABASE_URL'] %>
-
-  # Necesario para Solid Cable en Rails 8
-  cable:
-    <<: *default
-    url: <%= ENV['DATABASE_URL'] %>
