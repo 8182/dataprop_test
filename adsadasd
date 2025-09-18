@@ -1,0 +1,6 @@
+#usamos el generador de modelos para crear el modelo, la migracion:
+
+rails g model UfValue uf_date:date uf_value:decimal
+
+
+# considero que podria quitarle el id automatico generado, y dejar como clave primaria la fecha de la uf, ya que es un valor unico, partiria con el indice, etc
