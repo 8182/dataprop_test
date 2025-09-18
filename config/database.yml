@@ -7,7 +7,36 @@ development:
   <<: *default
   database: dataprop_test_development
 
+# Configuraciones EXACTAS que Rails busca
+cache:
+  <<: *default
+  database: dataprop_test_development
+
+cable:
+  <<: *default
+  database: dataprop_test_development
+
+# Configuraciones específicas por entorno
+cache_development:
+  <<: *default
+  database: dataprop_test_development
+
+cable_development:
+  <<: *default
+  database: dataprop_test_development
+
 production:
+  <<: *default
+  database: dataprop_test_production
+  url: <%= ENV['DATABASE_URL'] %>
+
+# Configuraciones para producción
+cache_production:
+  <<: *default
+  database: dataprop_test_production
+  url: <%= ENV['DATABASE_URL'] %>
+
+cable_production:
   <<: *default
   database: dataprop_test_production
   url: <%= ENV['DATABASE_URL'] %>
