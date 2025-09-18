@@ -26,7 +26,7 @@
     <small class="text-muted d-block mt-1">Complete solo los campos que desee; el formulario funciona de manera flexible.</small>
 
 
-  <%= form_with url: "#", method: :get, local: true, html: { id: "uf-form" } do |f| %>
+<%= form_with url: ufs_search_path, method: :get, local: true, html: { id: "uf-form" } do |f| %>
     <div class="form-group">
       <%= f.label :day, "Día:" %>
       <%= f.select :day, options_for_select((1..31).to_a), { include_blank: true }, class: "form-control", id: "uf-day" %>
@@ -88,7 +88,7 @@
       params.append("year", year);
       params.append("save_to_db", save);
 
-      fetch(`/ufs/search?${params.toString()}`)
+      fetch(`${form.action}?${params.toString()}`)
         .then(response => response.json())
         .then(data => {
           const resultDiv = document.getElementById("uf-result");
