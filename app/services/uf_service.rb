@@ -26,6 +26,9 @@ class UfService
           UfValue.find_or_create_by!(uf_date: uf['Fecha']) do |record|
             record.uf_value = uf['Valor'].to_s.gsub('.', '').gsub(',', '.').to_f
           end
+
+          # Invalidar caché para esta fecha si se actualizó
+          Rails.cache.delete("uf_#{record.uf_date}")
         end
       end
 
