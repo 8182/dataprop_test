@@ -97,18 +97,50 @@
           } else {
             // Si es un array → mes/año, si es objeto → día
             if (Array.isArray(data)) {
-              let html = '<div class="card p-3 shadow-sm"><h5>Resultados</h5><ul class="list-group">';
+              let html = `
+                <div class="card p-3 shadow-sm">
+                  <h5>Resultados</h5>
+                  <div class="table-responsive">
+                    <table class="table table-striped table-hover table-bordered">
+                      <thead class="table-dark">
+                        <tr>
+                          <th>Fecha</th>
+                          <th>Valor UF (CLP)</th>
+                          <th>Valor Dólar (CLP)</th>
+                          <th>Valor UF (USD)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+              `;
+              
               data.forEach(u => {
-                html += `<li class="list-group-item"><strong>${u.fecha}:</strong> $${Number(u.valor).toFixed(2)}</li>`;
+                html += `
+                  <tr>
+                    <td>${u.fecha}</td>
+                    <td>$${Number(u.valor).toFixed(2)}</td>
+                    <td>${u.valor_usd ? '$' + Number(u.valor_usd).toFixed(2) : 'N/A'}</td>
+                    <td>${u.valor_uf_usd ? Number(u.valor_uf_usd).toFixed(4) : 'N/A'}</td>
+                  </tr>
+                `;
               });
-              html += '</ul></div>';
+              
+              html += `
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              `;
               resultDiv.innerHTML = html;
             } else {
               resultDiv.innerHTML = `
                 <div class="card p-3 shadow-sm">
                   <h5>Resultado</h5>
-                  <p><strong>Fecha:</strong> ${data.fecha}</p>
-                  <p><strong>Valor UF:</strong> $${Number(data.valor).toFixed(2)}</p>
+                  <table class="table">
+                    <tr><th>Fecha:</th><td>${data.fecha}</td></tr>
+                    <tr><th>Valor UF (CLP):</th><td>$${Number(data.valor).toFixed(2)}</td></tr>
+                    <tr><th>Valor Dólar (CLP):</th><td>${data.valor_usd ? '$' + Number(data.valor_usd).toFixed(2) : 'N/A'}</td></tr>
+                    <tr><th>Valor UF (USD):</th><td>${data.valor_uf_usd ? Number(data.valor_uf_usd).toFixed(4) : 'N/A'}</td></tr>
+                  </table>
                 </div>
               `;
             }
