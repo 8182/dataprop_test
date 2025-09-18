@@ -25,6 +25,14 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
       <div class="container">
         <a class="navbar-brand" href="<%= root_path %>">Consultador precios UF</a>
+
+        <div class="collapse navbar-collapse">
+          <ul class="navbar-nav ms-auto">
+            <li class="nav-item">
+              <%= link_to "Buscador de valores UF", ufs_busqueda_path, class: "nav-link" %>
+            </li>
+          </ul>
+        </div>
       </div>
     </nav>
 
