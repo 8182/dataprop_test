@@ -84,12 +84,17 @@ class UfsController < ApplicationController
 
   #metodo privado para busqueda solo para un dia en especifico, ademas maneja el flujo si se guarda la data o no
   def fetch_day(fecha, save)
-    if save
-      data = UfService.fetch(year: fecha.year, month: fecha.month, day: fecha.day, fill_db_with_search: true)
-      uf_data = data["UFs"]&.first
-      uf_data ? { fecha: uf_data["Fecha"], valor: uf_data["Valor"].to_s.gsub('.', '').gsub(',', '.').to_f } : nil
-    else
-      data = UfService.fetch(year: fecha.year, month: fecha.month, day: fecha.day, fill_db_with_search: false)
+    cache_key = "uf_#{fecha}" #key del cache
+
+    # intentamos leer del cache, si no exsite se hara la consulta
+    Rails.cache.fetch(cache_key, expires_in: 1.day) do
+      # si save es true, también actualizamos la DB
+      if save
+        data = UfService.fetch(year: fecha.year, month: fecha.month, day: fecha.day, fill_db_with_search: true)
+      else
+        data = UfService.fetch(year: fecha.year, month: fecha.month, day: fecha.day, fill_db_with_search: false)
+      end
+
       uf_data = data["UFs"]&.first
       uf_data ? { fecha: uf_data["Fecha"], valor: uf_data["Valor"].to_s.gsub('.', '').gsub(',', '.').to_f } : nil
     end
