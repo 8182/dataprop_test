@@ -1,0 +1,123 @@
+<h1>Consulta de UF</h1>
+
+<div class="uf-hoy">
+  <h3>Valor UF de hoy</h3>
+  <% if @uf_today.present? %>
+    <p>
+      <strong>$<%= number_with_precision(@uf_today[:valor], precision: 2) %></strong>
+      <br>
+      <small>Fecha: <%= @uf_today[:fecha] %></small>
+    </p>
+  <% else %>
+    <p>No se encontró el valor de la UF.</p>
+  <% end %>
+
+  <% if @var.present? %>
+    <div class="alert alert-warning">
+      <%= @var %>
+    </div>
+  <% end %>
+</div>
+
+<hr>
+
+<div class="uf-form">
+  <h3>Buscar UF</h3>
+    <small class="text-muted d-block mt-1">Complete solo los campos que desee; el formulario funciona de manera flexible.</small>
+
+
+  <%= form_with url: "#", method: :get, local: true, html: { id: "uf-form" } do |f| %>
+    <div class="form-group">
+      <%= f.label :day, "Día:" %>
+      <%= f.select :day, options_for_select((1..31).to_a), { include_blank: true }, class: "form-control", id: "uf-day" %>
+    </div>
+
+    <div class="form-group mt-2">
+      <%= f.label :month, "Mes:" %>
+      <% months = Date::MONTHNAMES.compact %>
+      <%= f.select :month, options_for_select(months.each_with_index.map { |m,i| [m, i+1] }), { include_blank: true }, class: "form-control", id: "uf-month" %>
+    </div>
+
+    <div class="form-group mt-2">
+      <%= f.label :year, "Año:" %>
+      <% current_year = Date.today.year %>
+      <%= f.select :year, options_for_select((2000..current_year).to_a.reverse), { include_blank: true }, class: "form-control", id: "uf-year" %>
+    </div>
+
+    <div class="form-check mt-2">
+      <%= f.check_box :save_to_db, class: "form-check-input", id: "uf-save" %>
+      <%= f.label :save_to_db, "Guardar resultados en la base de datos", class: "form-check-label" %>
+    </div>
+
+    <div class="form-group mt-3">
+      <%= f.submit "Buscar", class: "btn btn-primary" %>
+    </div>
+  <% end %>
+</div>
+
+<hr>
+
+<div id="uf-result">
+  <!-- Aquí se renderizará el resultado vía fetch/JS -->
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const form = document.getElementById("uf-form");
+
+    form.addEventListener("submit", function(e) {
+      e.preventDefault();
+
+      const day   = document.getElementById("uf-day").value;
+      const month = document.getElementById("uf-month").value;
+      const year  = document.getElementById("uf-year").value;
+      const save  = document.getElementById("uf-save").checked ? 1 : 0;
+
+      if (!year) {
+        alert("Debe ingresar al menos el año");
+        return;
+      }
+      if (day && !month) {
+        alert("Si ingresa un día, debe seleccionar también el mes");
+        return;
+      }
+
+      const params = new URLSearchParams();
+      if (day) params.append("day", day);
+      if (month) params.append("month", month);
+      params.append("year", year);
+      params.append("save_to_db", save);
+
+      fetch(`/ufs/search?${params.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+          const resultDiv = document.getElementById("uf-result");
+          if (data.error) {
+            resultDiv.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+          } else {
+            // Si es un array → mes/año, si es objeto → día
+            if (Array.isArray(data)) {
+              let html = '<div class="card p-3 shadow-sm"><h5>Resultados</h5><ul class="list-group">';
+              data.forEach(u => {
+                html += `<li class="list-group-item"><strong>${u.fecha}:</strong> $${Number(u.valor).toFixed(2)}</li>`;
+              });
+              html += '</ul></div>';
+              resultDiv.innerHTML = html;
+            } else {
+              resultDiv.innerHTML = `
+                <div class="card p-3 shadow-sm">
+                  <h5>Resultado</h5>
+                  <p><strong>Fecha:</strong> ${data.fecha}</p>
+                  <p><strong>Valor UF:</strong> $${Number(data.valor).toFixed(2)}</p>
+                </div>
+              `;
+            }
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          alert("Error al consultar la UF.");
+        });
+    });
+  });
+</script>
