@@ -130,7 +130,6 @@ class UfsController < ApplicationController
 
   private
 
-  # Nuevos métodos para obtener valores USD
   def fetch_usd_value(date)
     cache_key = "usd_#{date}"
     Rails.cache.fetch(cache_key, expires_in: 12.hours) do
