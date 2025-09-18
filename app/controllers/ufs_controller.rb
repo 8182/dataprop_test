@@ -1,21 +1,29 @@
 class UfsController < ApplicationController
+
   def index
-    # partimos por cargar 1 año de los valores de la uf para presentarlos en el home/index
     start_date = Date.today - 1.year
     end_date = Date.today
 
-    # calcular segundos que faltan hasta las 00:00, para invalidar el cache y generar uno nuevo con la consulta que tomaria desde el dia nuevo hasta 1 año atras
     expires_in = (Time.current.end_of_day - Time.current).to_i
 
-    # consulta a la api a travez de un servicio, agregandole el cache y la expiracion de este calculado
     @ufs = Rails.cache.fetch("ufs_#{start_date}_#{end_date}", expires_in: expires_in) do
-      # Llamamos al servicio para el año completo
       data = UfService.fetch(year: start_date.year, fill_db_with_search: false)
-
+      
       data['UFs'].map do |uf|
-        { fecha: uf['Fecha'], uf_value: uf['Valor'].to_s.gsub('.', '').gsub(',', '.').to_f }
+        # Convertir a formato YYYY-MM-DD para que coincida con @usd_values
+        fecha_normalizada = Date.parse(uf['Fecha']).strftime('%Y-%m-%d')
+        { 
+          uf_date: fecha_normalizada,
+          uf_value: uf['Valor'].to_s.gsub('.', '').gsub(',', '.').to_f 
+        }
       end
     end
+
+    @usd_values = Rails.cache.fetch("usd_#{start_date}_#{end_date}", expires_in: 12.hours) do
+      DollarService.fetch_range(start_date, end_date)
+    end
+
+    @dolar_hoy = @usd_values[Date.today.strftime('%Y-%m-%d')]
   end
 
   # vista con el form para buscar fechas
@@ -58,25 +66,83 @@ class UfsController < ApplicationController
     if day && month && year # busqueda exacta por dia
       fecha = Date.new(year.to_i, month.to_i, day.to_i)
       @uf = fetch_day(fecha, save)
-      result = @uf ? { fecha: @uf[:fecha], valor: @uf[:valor] } : { error: 'UF no encontrada' }
+      result = if @uf
+                # Obtener valor USD para esta fecha
+                usd_value = fetch_usd_value(fecha)
+                { 
+                  fecha: @uf[:fecha], 
+                  valor: @uf[:valor],
+                  valor_usd: usd_value,
+                  valor_uf_usd: usd_value ? (@uf[:valor] / usd_value).round(4) : nil
+                }
+              else
+                { error: 'UF no encontrada' }
+              end
 
     elsif month && year # busqueda por año y mes
       start_date = Date.new(year.to_i, month.to_i, 1)
       end_date   = start_date.end_of_month
       @ufs = fetch_range(start_date, end_date, save)
-      result = @ufs.any? ? @ufs : { error: 'UF no encontrada' }
+      result = if @ufs.any?
+                # Obtener valores USD para el rango
+                usd_values = fetch_usd_range(start_date, end_date)
+                @ufs.map do |uf|
+                  fecha = Date.parse(uf[:fecha])
+                  usd_value = usd_values[fecha.strftime('%Y-%m-%d')]
+                  {
+                    fecha: uf[:fecha],
+                    valor: uf[:valor],
+                    valor_usd: usd_value,
+                    valor_uf_usd: usd_value ? (uf[:valor] / usd_value).round(4) : nil
+                  }
+                end
+              else
+                { error: 'UF no encontrada' }
+              end
 
     elsif year
       start_date = Date.new(year.to_i, 1, 1)
       end_date   = start_date.end_of_year
       @ufs = fetch_range(start_date, end_date, save)
-      result = @ufs.any? ? @ufs : { error: 'UF no encontrada' }
+      result = if @ufs.any?
+                # Obtener valores USD para el rango
+                usd_values = fetch_usd_range(start_date, end_date)
+                @ufs.map do |uf|
+                  fecha = Date.parse(uf[:fecha])
+                  usd_value = usd_values[fecha.strftime('%Y-%m-%d')]
+                  {
+                    fecha: uf[:fecha],
+                    valor: uf[:valor],
+                    valor_usd: usd_value,
+                    valor_uf_usd: usd_value ? (uf[:valor] / usd_value).round(4) : nil
+                  }
+                end
+              else
+                { error: 'UF no encontrada' }
+              end
 
     else
       result = { error: 'Debe enviar al menos el año' }
     end
 
     render json: result
+  end
+
+  private
+
+  # Nuevos métodos para obtener valores USD
+  def fetch_usd_value(date)
+    cache_key = "usd_#{date}"
+    Rails.cache.fetch(cache_key, expires_in: 12.hours) do
+      DollarService.fetch_range(date, date)[date.strftime('%Y-%m-%d')]
+    end
+  end
+
+  def fetch_usd_range(start_date, end_date)
+    cache_key = "usd_#{start_date}_#{end_date}"
+    Rails.cache.fetch(cache_key, expires_in: 12.hours) do
+      DollarService.fetch_range(start_date, end_date)
+    end
   end
 
   private
