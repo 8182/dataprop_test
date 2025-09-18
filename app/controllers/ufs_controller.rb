@@ -4,26 +4,41 @@ class UfsController < ApplicationController
     start_date = Date.today - 1.year
     end_date = Date.today
 
+    cache_key = "ufs_#{start_date}_#{end_date}"
     expires_in = (Time.current.end_of_day - Time.current).to_i
 
-    @ufs = Rails.cache.fetch("ufs_#{start_date}_#{end_date}", expires_in: expires_in) do
-      data = UfService.fetch(year: start_date.year, fill_db_with_search: false)
+    @ufs_data = Rails.cache.fetch(cache_key, expires_in: expires_in) do
+      # Verificar qué fechas faltan en la BD
+      existing_dates = UfValue.where(uf_date: start_date..end_date).pluck(:uf_date)
+      missing_dates = (start_date..end_date).to_a - existing_dates
       
-      data['UFs'].map do |uf|
-        # Convertir a formato YYYY-MM-DD para que coincida con @usd_values
-        fecha_normalizada = Date.parse(uf['Fecha']).strftime('%Y-%m-%d')
-        { 
-          uf_date: fecha_normalizada,
-          uf_value: uf['Valor'].to_s.gsub('.', '').gsub(',', '.').to_f 
-        }
+      # Cargar datos faltantes
+      if missing_dates.any?
+        missing_dates.each do |date|
+          UfService.fetch(
+            year: date.year, 
+            month: date.month, 
+            day: date.day,
+            fill_db_with_search: true
+          )
+        end
       end
+
+      # Obtener todos los datos procesados
+      UfValue.where(uf_date: start_date..end_date)
+            .order(uf_date: :desc)
+            .map do |uf|
+              {
+                uf_date: uf.uf_date.strftime('%Y-%m-%d'),
+                uf_value: uf.uf_value
+              }
+            end
     end
 
     @usd_values = Rails.cache.fetch("usd_#{start_date}_#{end_date}", expires_in: 12.hours) do
       DollarService.fetch_range(start_date, end_date)
     end
 
-    @dolar_hoy = @usd_values[Date.today.strftime('%Y-%m-%d')]
   end
 
   # vista con el form para buscar fechas
@@ -143,8 +158,6 @@ class UfsController < ApplicationController
       DollarService.fetch_range(start_date, end_date)
     end
   end
-
-  private
 
   # metodo privado para busqueda solo para un dia en especifico, ademas maneja el flujo si se guarda la data o no
   def fetch_day(fecha, save)
