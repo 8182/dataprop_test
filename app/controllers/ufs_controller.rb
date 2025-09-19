@@ -7,7 +7,7 @@ class UfsController < ApplicationController
     cache_key = "ufs_#{start_date}_#{end_date}"
     expires_in = (Time.current.end_of_day - Time.current).to_i
 
-    @ufs_data = Rails.cache.fetch(cache_key, expires_in: expires_in) do
+    @ufs = Rails.cache.fetch(cache_key, expires_in: expires_in) do
       # Verificar qué fechas faltan en la BD
       existing_dates = UfValue.where(uf_date: start_date..end_date).pluck(:uf_date)
       missing_dates = (start_date..end_date).to_a - existing_dates
@@ -51,18 +51,26 @@ class UfsController < ApplicationController
     # generamos un cache con mismo funcionamiento que en el index
     @uf_today = Rails.cache.fetch("uf_#{today}", expires_in: expires_in_today) do
       data = UfService.fetch(year: today.year, month: today.month, day: today.day, fill_db_with_search: false)
-      uf = data && data['UFs']&.first
-      uf ? { fecha: uf['Fecha'], valor: uf['Valor'].to_s.gsub('.', '').gsub(',', '.').to_f } : nil
+      if data && data['UFs']&.first
+        uf = data['UFs'].first
+        { fecha: uf['Fecha'], valor: uf['Valor'].to_s.gsub('.', '').gsub(',', '.').to_f }
+      else
+        nil
+      end
     end
 
-    # como fallback, si la api responde nil para el dia, se tomara el valor del dia anterior, y se creara la variable @var con valor, para mostrar en el front que hubo este cambio
+    # como fallback, si la api responde nil para el dia, se tomara el valor del dia anterior
     if @uf_today.nil?
       yesterday = today - 1.day
       @uf_today = Rails.cache.fetch("uf_#{yesterday}", expires_in: 1.year) do
         data = UfService.fetch(year: yesterday.year, month: yesterday.month, day: yesterday.day,
-                               fill_db_with_search: false)
-        uf = data && data['UFs']&.first
-        uf ? { fecha: uf['Fecha'], valor: uf['Valor'].to_s.gsub('.', '').gsub(',', '.').to_f } : nil
+                              fill_db_with_search: false)
+        if data && data['UFs']&.first
+          uf = data['UFs'].first
+          { fecha: uf['Fecha'], valor: uf['Valor'].to_s.gsub('.', '').gsub(',', '.').to_f }
+        else
+          nil
+        end
       end
       @var = "Mostrando UF del día anterior (#{yesterday})"
     else
@@ -161,19 +169,20 @@ class UfsController < ApplicationController
 
   # metodo privado para busqueda solo para un dia en especifico, ademas maneja el flujo si se guarda la data o no
   def fetch_day(fecha, save)
-    cache_key = "uf_#{fecha}" # key del cache
-
-    # intentamos leer del cache, si no exsite se hara la consulta
+    cache_key = "uf_#{fecha}"
+    
     Rails.cache.fetch(cache_key, expires_in: 1.day) do
-      # si save es true, también actualizamos la DB
-      data = if save
-               UfService.fetch(year: fecha.year, month: fecha.month, day: fecha.day, fill_db_with_search: true)
-             else
-               UfService.fetch(year: fecha.year, month: fecha.month, day: fecha.day, fill_db_with_search: false)
-             end
-
-      uf_data = data['UFs']&.first
-      uf_data ? { fecha: uf_data['Fecha'], valor: uf_data['Valor'].to_s.gsub('.', '').gsub(',', '.').to_f } : nil
+      data = UfService.fetch(
+        year: fecha.year, 
+        month: fecha.month, 
+        day: fecha.day, 
+        fill_db_with_search: save
+      )
+      
+      return nil unless data && data['UFs']&.first
+      
+      uf_data = data['UFs'].first
+      { fecha: uf_data['Fecha'], valor: uf_data['Valor'].to_s.gsub('.', '').gsub(',', '.').to_f }
     end
   end
 
