@@ -23,12 +23,16 @@ class UfService
 
       if fill_db_with_search
         data['UFs'].each do |uf|
-          UfValue.find_or_create_by!(uf_date: uf['Fecha']) do |record|
-            record.uf_value = uf['Valor'].to_s.gsub('.', '').gsub(',', '.').to_f
+          fecha = Date.parse(uf['Fecha'])
+          valor = uf['Valor'].to_s.gsub('.', '').gsub(',', '.').to_f
+          
+          # Solo crear si no existe
+          UfValue.find_or_create_by!(uf_date: fecha) do |record|
+            record.uf_value = valor
           end
-
-          # Invalidar caché para esta fecha si se actualizó
-          Rails.cache.delete("uf_#{record.uf_date}")
+          
+          # Invalidar caché para esta fecha
+          Rails.cache.delete("uf_#{fecha}")
         end
       end
 
@@ -59,7 +63,7 @@ class UfService
   # Obtener UF de hoy
   def self.fetch_today
     today = Date.today
-    fetch(year: today.year, month: today.month, day: today.day)
+    fetch(year: today.year, month: today.month, day: today.day, fill_db_with_search: true)
   end
 
   # Obtener UF de un mes específico
